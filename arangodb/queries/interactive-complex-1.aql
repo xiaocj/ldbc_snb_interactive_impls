@@ -1,0 +1,28 @@
+// Q1. Transitive friends with certain name
+/*
+:param [{ personId, firstName }] => { RETURN
+  4398046511333 AS personId,
+  "Jose" AS firstName
+}
+*/
+
+
+LET friends = (FOR p IN Person
+FILTER p._key == @personId
+  FOR c  IN 1..3 OUTBOUND p knows
+  OPTIONS { order: "bfs" }
+  FILTER c.firstName == @firstName
+  SORT
+    p.lastName ASC,
+    TO_NUMBER(c._key) ASC
+  LIMIT 20
+RETURN c
+)
+
+FOR f IN friends
+  FOR l IN 1..1 OUTBOUND f isLocatedIn
+
+
+FOR f IN friends2
+  RETURN f
+

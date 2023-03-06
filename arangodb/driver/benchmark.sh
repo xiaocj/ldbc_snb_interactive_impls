@@ -23,4 +23,4 @@ java \
          --add-opens=java.base/sun.security.action=ALL-UNNAMED \
          --add-opens=java.base/sun.util.calendar=ALL-UNNAMED \
          --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED \
-         -cp target/cypher-1.0.0.jar org.ldbcouncil.snb.driver.Client -P ${BENCHMARK_PROPERTIES_FILE}
+         -cp target/arangodb-1.0.0.jar org.ldbcouncil.snb.driver.Client -P ${BENCHMARK_PROPERTIES_FILE}

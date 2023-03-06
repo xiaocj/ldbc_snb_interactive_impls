@@ -1,0 +1,31 @@
+// IS1. Profile of a person
+/*
+:param personId: 10995116277794
+MATCH (n:Person {id: $personId })-[:IS_LOCATED_IN]->(p:City)
+RETURN
+    n.firstName AS firstName,
+    n.lastName AS lastName,
+    n.birthday AS birthday,
+    n.locationIP AS locationIP,
+    n.browserUsed AS browserUsed,
+    p.id AS cityId,
+    n.gender AS gender,
+    n.creationDate AS creationDate
+
+ */
+
+
+WITH Place
+FOR p IN Person
+FILTER p._key == @personId
+    FOR c IN 1..1 OUTBOUND p isLocatedIn
+      RETURN {
+        firstName: p.firstName,
+        lastName: p.lastName,
+        birthday: p.birthday,
+        locationIP: p.locationIP,
+        browserUsed: p.browserUsed,
+        cityId: c._key,
+        gender: p.gender,
+        creationDate: p.creationDate
+       }

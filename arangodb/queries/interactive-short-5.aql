@@ -1,0 +1,20 @@
+// IS5. Creator of a message
+/*
+:param messageId: 206158431836
+
+MATCH (m:Message {id:  $messageId })-[:HAS_CREATOR]->(p:Person)
+RETURN
+    p.id AS personId,
+    p.firstName AS firstName,
+    p.lastName AS lastName
+ */
+
+WITH Message, Person
+ FOR message IN Message
+ FILTER message._key == @messageId
+   FOR author IN 1..1 OUTBOUND message hasCreator
+  RETURN {
+   authorId: author._key,
+   firstName: author.firstName,
+   lastName: author.lastName
+  }

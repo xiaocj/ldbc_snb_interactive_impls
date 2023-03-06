@@ -1,0 +1,27 @@
+// IS3. Friends of a person
+/*
+:param personId: 10995116277794
+
+MATCH (n:Person {id: $personId })-[r:KNOWS]-(friend)
+RETURN
+    friend.id AS personId,
+    friend.firstName AS firstName,
+    friend.lastName AS lastName,
+    r.creationDate AS friendshipCreationDate
+ORDER BY
+    friendshipCreationDate DESC,
+    toInteger(personId) ASC
+
+*/
+
+WITH Person
+ FOR person IN Person
+ FILTER person._key == @personId
+   FOR friend, knows_edge IN 1..1 OUTBOUND person knows
+     SORT knows_edge.creationDate DESC, TO_NUMBER(friend._key) ASC
+ RETURN {
+   friendId: friend._key,
+   firstName: friend.firstName,
+   lastName: friend.lastName,
+   friendshipCreationDate: knows_edge.creationDate
+ }

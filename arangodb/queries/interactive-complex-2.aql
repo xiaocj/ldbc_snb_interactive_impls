@@ -1,0 +1,40 @@
+// Q2. Recent messages by your friends
+/*
+:param [{ personId, maxDate }] => { RETURN
+  10995116278009 AS personId,
+  1287230400000 AS maxDate
+}
+
+MATCH (:Person {id: $personId })-[:KNOWS]-(friend:Person)<-[:HAS_CREATOR]-(message:Message)
+    WHERE message.creationDate <= $maxDate
+    RETURN
+        friend.id AS personId,
+        friend.firstName AS personFirstName,
+        friend.lastName AS personLastName,
+        message.id AS postOrCommentId,
+        coalesce(message.content,message.imageFile) AS postOrCommentContent,
+        message.creationDate AS postOrCommentCreationDate
+    ORDER BY
+        postOrCommentCreationDate DESC,
+        toInteger(postOrCommentId) ASC
+    LIMIT 20
+*/
+
+FOR p IN Person
+FILTER p._key == @personId
+  FOR f  IN 1..1 OUTBOUND p knows
+    FOR m IN 1..1 INBOUND f hasCreator
+    FILTER m.creationDate <= @maxDate
+    SORT
+      m.creationDate DESC,
+      TO_NUMBER(m._key) ASC
+    LIMIT @limit
+RETURN {
+  personId: f._key,
+  personFirstName: f.firstName,
+  personLastName: f.lastName,
+  postOrCommentId: m._key,
+  postOrCommentContent: m.content,
+  postOrCommentCreationDate: m.creationDate
+}
+

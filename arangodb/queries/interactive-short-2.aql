@@ -1,0 +1,43 @@
+// IS2. Recent messages of a person
+/*
+:param personId: 10995116277795
+MATCH (:Person {id: $personId})<-[:HAS_CREATOR]-(message)
+WITH
+ message,
+ message.id AS messageId,
+ message.creationDate AS messageCreationDate
+ORDER BY messageCreationDate DESC, messageId ASC
+LIMIT 10
+MATCH (message)-[:REPLY_OF*0..]->(post:Post),
+      (post)-[:HAS_CREATOR]->(person)
+RETURN
+ messageId,
+ coalesce(message.imageFile,message.content) AS messageContent,
+ messageCreationDate,
+ post.id AS postId,
+ person.id AS personId,
+ person.firstName AS personFirstName,
+ person.lastName AS personLastName
+ORDER BY messageCreationDate DESC, messageId ASC
+ */
+
+
+WITH Message
+ FOR person IN Person
+ FILTER person._key == @personId
+   FOR message IN 1..1 INBOUND person hasCreator
+     SORT message.creationDate DESC, TO_NUMBER(message._key) DESC
+     LIMIT @limit
+     FOR originalPost IN 0..1024 OUTBOUND message replyOf
+       FILTER originalPost.type == "Post"
+         FOR originalPostAuthor IN 1..1 OUTBOUND originalPost hasCreator
+ RETURN {
+   messageId: message._key,
+   messageContent: message.content,
+   messageImageFile: message.imageFile,
+   messageCreationDate: message.creationDate,
+   originalPostId: originalPost._key,
+   originalPostAuthorId: originalPostAuthor._key,
+   originalPostAuthorFirstName: originalPostAuthor.firstName,
+   originalPostAuthorLastName: originalPostAuthor.lastName
+  }
