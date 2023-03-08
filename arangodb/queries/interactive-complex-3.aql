@@ -1,0 +1,72 @@
+// Q3. Friends and friends of friends that have been to given countries
+/*
+:param [{ personId, countryXName, countryYName, startDate, endDate }] => { RETURN
+  6597069766734 AS personId,
+  "Angola" AS countryXName,
+  "Colombia" AS countryYName,
+  1275393600000 AS startDate,
+  1277812800000 AS endDate
+}
+*/
+
+WITH Place, Message
+// 1. find all friends, and friends of friends
+LET friends = (FOR p IN Person
+FILTER p._key == @personId
+  FOR f  IN 1..2 OUTBOUND p knows
+  FILTER f._key != p._key
+  RETURN f
+)
+
+// 2. filter friends not located in @countryXName and @countryYName
+LET friends2 = (FOR f IN friends
+    FOR l IN 1..1 OUTBOUND f isLocatedIn
+    FILTER l.type == "city"
+        FOR l2 IN OUTBOUND l isPartOf
+        FILTER l2.type == "country" && l2.name NOT IN [@countryXName, @countryYName]
+        RETURN f
+)
+
+// 3. find messages posted by friends in @countryXName or @countryYName
+LET messages = (FOR f IN friends2
+    FOR m IN 1..1 INBOUND f hasCreator
+        FILTER m.creationDate >= @startDate && m.creationDate < @endDate
+        FOR l IN 1..1 OUTBOUND m isLocatedIn
+        FILTER l.name IN [@countryXName, @countryYName]
+        RETURN {
+           "personId": f._key,
+           "firstName": f.firstName,
+           "lastName": f.lastName,
+           "country": l.name
+        }
+)
+
+// 4. group messages by person, and country
+LET messages2 = (FOR m IN messages
+  COLLECT personId = m.personId, firstName=m.firstName, lastName=m.lastName, country=m.country WITH COUNT INTO counter
+  return {
+    "personId": personId,
+    "firstName": firstName,
+    "lastName": lastName,
+    "country": country,
+    "count" : counter
+  }
+)
+
+// 5. AGGREGATE counter
+FOR m IN messages2
+//  LET count = m.count
+  COLLECT personId = m.personId, firstName=m.firstName, lastName=m.lastName
+  AGGREGATE tot=SUM(m.count)
+  INTO groups = {"country": m.country, "count": m.count}
+  SORT tot DESC, personId
+  LIMIT @limit
+return {
+    "personId": personId,
+    "personFirstName": firstName,
+    "personLastName": lastName,
+    "xCount": FIRST(FOR g IN groups FILTER g.country == @countryXName RETURN g.count),
+    "yCount": FIRST(FOR g IN groups FILTER g.country == @countryYName RETURN g.count),
+    "count" : tot,
+}
+

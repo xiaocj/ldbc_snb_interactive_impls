@@ -1,9 +1,6 @@
 package org.ldbcouncil.snb.impls.workloads.arango;
 
-import com.arangodb.ArangoCursor;
-import com.arangodb.ArangoDB;
-import com.arangodb.ArangoDBException;
-import com.arangodb.ArangoDatabase;
+import com.arangodb.*;
 import com.arangodb.entity.BaseDocument;
 import com.google.common.collect.ImmutableMap;
 import org.ldbcouncil.snb.driver.DbException;
@@ -11,6 +8,7 @@ import org.ldbcouncil.snb.driver.ResultReporter;
 import org.ldbcouncil.snb.driver.control.LoggingService;
 import org.ldbcouncil.snb.driver.workloads.interactive.*;
 import org.ldbcouncil.snb.impls.workloads.QueryType;
+import org.ldbcouncil.snb.impls.workloads.arango.converter.ArangoConverter;
 import org.ldbcouncil.snb.impls.workloads.db.BaseDb;
 import org.ldbcouncil.snb.impls.workloads.operationhandlers.ListOperationHandler;
 import org.ldbcouncil.snb.impls.workloads.operationhandlers.SingletonOperationHandler;
@@ -53,31 +51,53 @@ public class ArangoDB2 extends BaseDb<ArangoQueryStore>
     public static class InteractiveQuery1 implements ListOperationHandler<LdbcQuery1Result,LdbcQuery1, ArangoDbConnectionState>
     {
         @Override
-        public void executeOperation(LdbcQuery1 operation, ArangoDbConnectionState state, ResultReporter resultReporter) throws DbException {
-            String query = getQueryString(state, operation);
-            final Map<String, Object> parameters = getParameters(state, operation );
-
-            ArangoDatabase db = state.getDatabase();
-            try
-            {
-                String statement = "";
-
-                // Execute the query and get the results.
-                List<LdbcQuery1Result> resultList = new ArrayList<>();
-                resultReporter.report( resultList.size(), resultList, operation );
-            } catch (final ArangoDBException e) {
-                throw new DbException( e );
-            }
+        public String getQueryString(ArangoDbConnectionState state, LdbcQuery1 operation) {
+            return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery1);
         }
 
         public Map<String, Object> getParameters(ArangoDbConnectionState state, LdbcQuery1 operation) {
             return state.getQueryStore().getQuery1Map(operation);
         }
 
-        @Override
-        public String getQueryString(ArangoDbConnectionState state, LdbcQuery1 operation) {
-            return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery1);
+         @Override
+        public void executeOperation( LdbcQuery1 operation, org.ldbcouncil.snb.impls.workloads.arango.ArangoDbConnectionState state,
+                                      ResultReporter resultReporter ) throws DbException
+        {
+            String query = getQueryString(state, operation);
+            Map<String, Object> parameters = getParameters(state, operation );
+
+            ArangoDatabase db = state.getDatabase();
+            try {
+                List<LdbcQuery1Result> resultList = new ArrayList<>();
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
+                while ( result.hasNext() ) {
+                    BaseDocument doc = result.next();
+                    Double distance = (Double)doc.getAttribute("distanceFromPerson");
+                    LdbcQuery1Result r = new LdbcQuery1Result(
+                            Long.parseLong((String)doc.getAttribute("friendId")),
+                            (String)doc.getAttribute("friendLastName"),
+                            (int)Math.round(distance),
+                            (Long) doc.getAttribute("friendBirthday"),
+                            (Long) doc.getAttribute("friendCreationDate"),
+                            (String)doc.getAttribute("friendGender"),
+                            (String)doc.getAttribute("friendBrowserUsed"),
+                            (String)doc.getAttribute("friendLocationIp"),
+                            new ArrayList<String>(),
+                            new ArrayList<String>(),
+                            (String)doc.getAttribute("friendCityName"),
+                            new ArrayList<LdbcQuery1Result.Organization>(),
+                            new ArrayList<LdbcQuery1Result.Organization>()
+                    );
+
+                    resultList.add(r);
+                }
+                resultReporter.report(1, resultList, operation);
+            } catch (final ArangoDBException e) {
+                throw new DbException( e );
+            }
         }
+
+
     }
 
     public static class InteractiveQuery2 implements ListOperationHandler<LdbcQuery2Result,LdbcQuery2, ArangoDbConnectionState>
@@ -97,13 +117,11 @@ public class ArangoDB2 extends BaseDb<ArangoQueryStore>
         {
             String query = getQueryString(state, operation);
             Map<String, Object> parameters = getParameters(state, operation );
-            HashMap p2 = new HashMap();
-            parameters.forEach((k, v) -> p2.put(k, v));
 
             ArangoDatabase db = state.getDatabase();
             try {
                 List<LdbcQuery2Result> resultList = new ArrayList<>();
-                final ArangoCursor<BaseDocument> result = db.query( query, p2, null,  BaseDocument.class);
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
                 while ( result.hasNext() ) {
                     BaseDocument doc = result.next();
                     LdbcQuery2Result r = new LdbcQuery2Result(
@@ -123,198 +141,298 @@ public class ArangoDB2 extends BaseDb<ArangoQueryStore>
         }
     }
 
-    /*
-    public static class InteractiveQuery3 extends org.ldbcouncil.snb.impls.workloads.arango.operationhandlers.ArangoListOperationHandler<LdbcQuery3,LdbcQuery3Result>
+    public static class InteractiveQuery3 implements ListOperationHandler<LdbcQuery3Result,LdbcQuery3, ArangoDbConnectionState>
     {
         @Override
         public String getQueryString(ArangoDbConnectionState state, LdbcQuery3 operation) {
             return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery3);
         }
 
-        @Override
         public Map<String, Object> getParameters(ArangoDbConnectionState state, LdbcQuery3 operation) {
             return state.getQueryStore().getQuery3Map(operation);
         }
 
         @Override
-        public LdbcQuery3Result toResult( Record record )
+        public void executeOperation( LdbcQuery3 operation, org.ldbcouncil.snb.impls.workloads.arango.ArangoDbConnectionState state,
+                                      ResultReporter resultReporter ) throws DbException
         {
-            long personId = record.get( 0 ).asLong();
-            String personFirstName = record.get( 1 ).asString();
-            String personLastName = record.get( 2 ).asString();
-            int xCount = record.get( 3 ).asInt();
-            int yCount = record.get( 4 ).asInt();
-            int count = record.get( 5 ).asInt();
-            return new LdbcQuery3Result(
-                    personId,
-                    personFirstName,
-                    personLastName,
-                    xCount,
-                    yCount,
-                    count );
+            String query = getQueryString(state, operation);
+            Map<String, Object> parameters = getParameters(state, operation );
+
+            ArangoDatabase db = state.getDatabase();
+            try {
+                List<LdbcQuery3Result> resultList = new ArrayList<>();
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
+                while ( result.hasNext() ) {
+                    BaseDocument doc = result.next();
+                    Object xCount = doc.getAttribute("xCount");
+                    Object yCount = doc.getAttribute("yCount");
+                    Double count = (Double) doc.getAttribute("count");
+
+                    LdbcQuery3Result r = new LdbcQuery3Result(
+                            Long.parseLong((String)doc.getAttribute("personId")),
+                            (String)doc.getAttribute("personFirstName"),
+                            (String)doc.getAttribute("personLastName"),
+                            (xCount != null) ? (Long)xCount : 0,
+                            (yCount != null) ? (Long)yCount : 0,
+                            Math.round(count));
+
+                    resultList.add(r);
+                }
+                resultReporter.report(1, resultList, operation);
+            } catch (final ArangoDBException e) {
+                throw new DbException( e );
+            }
         }
     }
 
-    public static class InteractiveQuery4 extends org.ldbcouncil.snb.impls.workloads.arango.operationhandlers.ArangoListOperationHandler<LdbcQuery4,LdbcQuery4Result>
+    public static class InteractiveQuery4 implements ListOperationHandler<LdbcQuery4Result,LdbcQuery4, ArangoDbConnectionState>
     {
         @Override
         public String getQueryString(ArangoDbConnectionState state, LdbcQuery4 operation) {
             return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery4);
         }
 
-        @Override
         public Map<String, Object> getParameters(ArangoDbConnectionState state, LdbcQuery4 operation) {
             return state.getQueryStore().getQuery4Map(operation);
         }
 
         @Override
-        public LdbcQuery4Result toResult( Record record )
+        public void executeOperation( LdbcQuery4 operation, org.ldbcouncil.snb.impls.workloads.arango.ArangoDbConnectionState state,
+                                      ResultReporter resultReporter ) throws DbException
         {
-            String tagName = record.get( 0 ).asString();
-            int postCount = record.get( 1 ).asInt();
-            return new LdbcQuery4Result( tagName, postCount );
+            String query = getQueryString(state, operation);
+            Map<String, Object> parameters = getParameters(state, operation );
+
+            ArangoDatabase db = state.getDatabase();
+            try {
+                List<LdbcQuery4Result> resultList = new ArrayList<>();
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
+
+                while ( result.hasNext() ) {
+                    BaseDocument doc = result.next();
+                    Long postCount = (Long)doc.getAttribute("postCount");
+                    LdbcQuery4Result r = new LdbcQuery4Result(
+                            ArangoConverter.convertToString(doc.getAttribute("tagName")),
+                            postCount.intValue());
+
+                    resultList.add(r);
+                }
+                resultReporter.report(1, resultList, operation);
+            } catch (final ArangoDBException e) {
+//                System.out.printf("InteractiveQuery4=%s", e);
+                 throw new DbException( e );
+            }
         }
     }
 
-    public static class InteractiveQuery5 extends org.ldbcouncil.snb.impls.workloads.arango.operationhandlers.ArangoListOperationHandler<LdbcQuery5,LdbcQuery5Result>
+
+    public static class InteractiveQuery5  implements ListOperationHandler<LdbcQuery5Result,LdbcQuery5, ArangoDbConnectionState>
     {
         @Override
         public String getQueryString(ArangoDbConnectionState state, LdbcQuery5 operation) {
             return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery5);
         }
 
-        @Override
         public Map<String, Object> getParameters(ArangoDbConnectionState state, LdbcQuery5 operation) {
             return state.getQueryStore().getQuery5Map(operation);
         }
 
         @Override
-        public LdbcQuery5Result toResult( Record record )
+        public void executeOperation( LdbcQuery5 operation, org.ldbcouncil.snb.impls.workloads.arango.ArangoDbConnectionState state,
+                                      ResultReporter resultReporter ) throws DbException
         {
-            String forumTitle = record.get( 0 ).asString();
-            int postCount = record.get( 1 ).asInt();
-            return new LdbcQuery5Result( forumTitle, postCount );
+            // TODO
+            String query = getQueryString(state, operation);
+            Map<String, Object> parameters = getParameters(state, operation );
+
+            ArangoDatabase db = state.getDatabase();
+            try {
+                List<LdbcQuery5Result> resultList = new ArrayList<>();
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
+                while ( result.hasNext() ) {
+                    BaseDocument doc = result.next();
+                    LdbcQuery5Result r = new LdbcQuery5Result(
+                            (String)doc.getAttribute("forumTitle"),
+                            (Integer) doc.getAttribute("postCount"));
+
+                    resultList.add(r);
+                }
+                resultReporter.report(1, resultList, operation);
+            } catch (final ArangoDBException e) {
+                throw new DbException( e );
+            }
         }
     }
 
-    public static class InteractiveQuery6 extends org.ldbcouncil.snb.impls.workloads.arango.operationhandlers.ArangoListOperationHandler<LdbcQuery6,LdbcQuery6Result>
+    public static class InteractiveQuery6 implements ListOperationHandler<LdbcQuery6Result,LdbcQuery6, ArangoDbConnectionState>
     {
         @Override
         public String getQueryString(ArangoDbConnectionState state, LdbcQuery6 operation) {
             return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery6);
         }
 
-        @Override
         public Map<String, Object> getParameters(ArangoDbConnectionState state, LdbcQuery6 operation) {
             return state.getQueryStore().getQuery6Map(operation);
         }
 
         @Override
-        public LdbcQuery6Result toResult( Record record )
+        public void executeOperation( LdbcQuery6 operation, org.ldbcouncil.snb.impls.workloads.arango.ArangoDbConnectionState state,
+                                      ResultReporter resultReporter ) throws DbException
         {
-            String tagName = record.get( 0 ).asString();
-            int postCount = record.get( 1 ).asInt();
-            return new LdbcQuery6Result( tagName, postCount );
+            String query = getQueryString(state, operation);
+            Map<String, Object> parameters = getParameters(state, operation );
+
+            ArangoDatabase db = state.getDatabase();
+            try {
+                List<LdbcQuery6Result> resultList = new ArrayList<>();
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
+                while ( result.hasNext() ) {
+                    BaseDocument doc = result.next();
+                    Long postCount = (Long)doc.getAttribute("postCount");
+                    LdbcQuery6Result r = new LdbcQuery6Result(
+                            ArangoConverter.convertToString(doc.getAttribute("tagName")),
+                            postCount.intValue());
+
+                    resultList.add(r);
+                }
+                resultReporter.report(1, resultList, operation);
+            } catch (final ArangoDBException e) {
+                throw new DbException( e );
+            }
         }
     }
 
-    public static class InteractiveQuery7 extends org.ldbcouncil.snb.impls.workloads.arango.operationhandlers.ArangoListOperationHandler<LdbcQuery7,LdbcQuery7Result>
+    public static class InteractiveQuery7  implements ListOperationHandler<LdbcQuery7Result,LdbcQuery7, ArangoDbConnectionState>
     {
         @Override
         public String getQueryString(ArangoDbConnectionState state, LdbcQuery7 operation) {
             return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery7);
         }
 
-        @Override
         public Map<String, Object> getParameters(ArangoDbConnectionState state, LdbcQuery7 operation) {
             return state.getQueryStore().getQuery7Map(operation);
         }
 
         @Override
-        public LdbcQuery7Result toResult( Record record ) throws ParseException
+        public void executeOperation( LdbcQuery7 operation, org.ldbcouncil.snb.impls.workloads.arango.ArangoDbConnectionState state,
+                                      ResultReporter resultReporter ) throws DbException
         {
-            long personId = record.get( 0 ).asLong();
-            String personFirstName = record.get( 1 ).asString();
-            String personLastName = record.get( 2 ).asString();
-            long likeCreationDate = record.get( 3 ).asLong();
-            long messageId = record.get( 4 ).asLong();
-            String messageContent = record.get( 5 ).asString();
-            int minutesLatency = record.get( 6 ).asInt();
-            boolean isNew = record.get( 7 ).asBoolean();
-            return new LdbcQuery7Result(
-                    personId,
-                    personFirstName,
-                    personLastName,
-                    likeCreationDate,
-                    messageId,
-                    messageContent,
-                    minutesLatency,
-                    isNew );
+            String query = getQueryString(state, operation);
+            Map<String, Object> parameters = getParameters(state, operation );
+
+            ArangoDatabase db = state.getDatabase();
+            try {
+                List<LdbcQuery7Result> resultList = new ArrayList<>();
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
+                while ( result.hasNext() ) {
+                    BaseDocument doc = result.next();
+                    Long minutesLatency = Math.round((Double) doc.getAttribute("minutesLatency"));
+                    LdbcQuery7Result r = new LdbcQuery7Result(
+                            Long.parseLong((String)doc.getAttribute("friendId")),
+                            (String) doc.getAttribute("friendFirstName"),
+                            (String) doc.getAttribute("friendLastName"),
+                            (Long) doc.getAttribute("likesCreationDate"),
+                            Long.parseLong ((String) doc.getAttribute("messageId")),
+                            (String) doc.getAttribute("messageContent"),
+                            minutesLatency.intValue(),
+                            (Boolean) doc.getAttribute("isNew")
+                    );
+
+                    resultList.add(r);
+                }
+                resultReporter.report(1, resultList, operation);
+            } catch (final ArangoDBException e) {
+                throw new DbException( e );
+            }
         }
     }
 
-    public static class InteractiveQuery8 extends org.ldbcouncil.snb.impls.workloads.arango.operationhandlers.ArangoListOperationHandler<LdbcQuery8,LdbcQuery8Result>
+    public static class InteractiveQuery8 implements ListOperationHandler<LdbcQuery8Result,LdbcQuery8, ArangoDbConnectionState>
     {
         @Override
         public String getQueryString(ArangoDbConnectionState state, LdbcQuery8 operation) {
             return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery8);
         }
 
-        @Override
         public Map<String, Object> getParameters(ArangoDbConnectionState state, LdbcQuery8 operation) {
             return state.getQueryStore().getQuery8Map(operation);
         }
 
         @Override
-        public LdbcQuery8Result toResult( Record record ) throws ParseException
+        public void executeOperation( LdbcQuery8 operation, org.ldbcouncil.snb.impls.workloads.arango.ArangoDbConnectionState state,
+                                      ResultReporter resultReporter ) throws DbException
         {
-            long personId = record.get( 0 ).asLong();
-            String personFirstName = record.get( 1 ).asString();
-            String personLastName = record.get( 2 ).asString();
-            long commentCreationDate = record.get( 3 ).asLong();
-            long commentId = record.get( 4 ).asLong();
-            String commentContent = record.get( 5 ).asString();
-            return new LdbcQuery8Result(
-                    personId,
-                    personFirstName,
-                    personLastName,
-                    commentCreationDate,
-                    commentId,
-                    commentContent );
+            String query = getQueryString(state, operation);
+            Map<String, Object> parameters = getParameters(state, operation );
+
+            ArangoDatabase db = state.getDatabase();
+            try {
+                List<LdbcQuery8Result> resultList = new ArrayList<>();
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
+                while ( result.hasNext() ) {
+                    BaseDocument doc = result.next();
+                    LdbcQuery8Result r = new LdbcQuery8Result(
+                            Long.parseLong((String)doc.getAttribute("commentAuthorId")),
+                            (String) doc.getAttribute("commentAuthorFirstName"),
+                            (String) doc.getAttribute("commentAuthorLastName"),
+                            (Long) doc.getAttribute("commentCreationDate"),
+                            Long.parseLong((String) doc.getAttribute("commentId")),
+                            (String) doc.getAttribute("commentContent")
+                    );
+
+                    resultList.add(r);
+                }
+                resultReporter.report(1, resultList, operation);
+            } catch (final ArangoDBException e) {
+                throw new DbException( e );
+            }
         }
     }
 
-    public static class InteractiveQuery9 extends org.ldbcouncil.snb.impls.workloads.arango.operationhandlers.ArangoListOperationHandler<LdbcQuery9,LdbcQuery9Result>
+    public static class InteractiveQuery9 implements ListOperationHandler<LdbcQuery9Result,LdbcQuery9, ArangoDbConnectionState>
     {
         @Override
         public String getQueryString(ArangoDbConnectionState state, LdbcQuery9 operation) {
             return state.getQueryStore().getParameterizedQuery(QueryType.InteractiveComplexQuery9);
         }
 
-        @Override
         public Map<String, Object> getParameters(ArangoDbConnectionState state, LdbcQuery9 operation) {
             return state.getQueryStore().getQuery9Map(operation);
         }
-
         @Override
-        public LdbcQuery9Result toResult( Record record ) throws ParseException
+        public void executeOperation( LdbcQuery9 operation, org.ldbcouncil.snb.impls.workloads.arango.ArangoDbConnectionState state,
+                                      ResultReporter resultReporter ) throws DbException
         {
-            long personId = record.get( 0 ).asLong();
-            String personFirstName = record.get( 1 ).asString();
-            String personLastName = record.get( 2 ).asString();
-            long messageId = record.get( 3 ).asLong();
-            String messageContent = record.get( 4 ).asString();
-            long messageCreationDate = record.get( 5 ).asLong();
-            return new LdbcQuery9Result(
-                    personId,
-                    personFirstName,
-                    personLastName,
-                    messageId,
-                    messageContent,
-                    messageCreationDate );
+            String query = getQueryString(state, operation);
+            Map<String, Object> parameters = getParameters(state, operation );
+
+            ArangoDatabase db = state.getDatabase();
+            try {
+                List<LdbcQuery9Result> resultList = new ArrayList<>();
+                final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
+                while ( result.hasNext() ) {
+                    BaseDocument doc = result.next();
+                    LdbcQuery9Result r = new LdbcQuery9Result(
+                            Long.parseLong((String)doc.getAttribute("personId")),
+                            (String) doc.getAttribute("personFirstName"),
+                            (String) doc.getAttribute("personLastName"),
+                            Long.parseLong((String) doc.getAttribute("commentOrPostId")),
+                            (String) doc.getAttribute("commentOrPostContent"),
+                            (Long) doc.getAttribute("commentOrPostCreationDate")
+                    );
+
+                    resultList.add(r);
+                }
+                resultReporter.report(1, resultList, operation);
+            } catch (final ArangoDBException e) {
+                throw new DbException( e );
+            }
         }
+
     }
 
+    /*
     public static class InteractiveQuery10 extends org.ldbcouncil.snb.impls.workloads.arango.operationhandlers.ArangoListOperationHandler<LdbcQuery10,LdbcQuery10Result>
     {
         @Override
@@ -476,8 +594,7 @@ public class ArangoDB2 extends BaseDb<ArangoQueryStore>
             final Map<String, Object> parameters = getParameters(state, operation );
 
             ArangoDatabase db = state.getDatabase();
-            try
-            {
+            try {
                 final ArangoCursor<BaseDocument> result = db.query( query, parameters, null,  BaseDocument.class);
                 if ( result.hasNext() )
                 {

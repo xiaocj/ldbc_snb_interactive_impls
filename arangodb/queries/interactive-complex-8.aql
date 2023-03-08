@@ -1,0 +1,20 @@
+// Q8. Recent replies
+/*
+:param personId: 143
+*/
+WITH Message
+FOR p IN Person
+FILTER p._key == @personId
+  FOR post IN 1..1 INBOUND p hasCreator
+    FOR comment IN 1..1 INBOUND post replyOf
+      SORT comment.creationDate DESC, TO_NUMBER(comment._key)
+      LIMIT 20
+      FOR commentAuthor IN 1..1 OUTBOUND comment hasCreator
+        RETURN {
+          "commentAuthorId": commentAuthor._key,
+          "commentAuthorFirstName": commentAuthor.firstName,
+          "commentAuthorLastName": commentAuthor.lastName,
+          "commentCreationDate": comment.creationDate,
+          "commentId": comment._key,
+          "commentContent": comment.content
+        }

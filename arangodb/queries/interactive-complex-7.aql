@@ -1,0 +1,28 @@
+// Q7. Recent likers
+/*
+:param personId: 4398046511268
+*/
+
+WITH Message
+FOR p IN Person
+FILTER p._key == @personId
+  FOR post IN 1..1 INBOUND p hasCreator
+    FOR liker, elike IN 1..1 INBOUND post likes
+      LET likeCreateTime = elike.creationDate
+      LET minutesLatency = (likeCreateTime - post.creationDate)/1000/60
+      SORT likeCreateTime DESC, TO_NUMBER(post._key) ASC
+      COLLECT l=liker INTO groups = {
+        "post": post,
+        "minutesLatency": minutesLatency,
+        "likesCreationDate": likeCreateTime
+      }
+    RETURN {
+      "friendId": l._key,
+      "friendFirstName": l.firstName,
+      "friendLastName": l.lastName,
+      "likesCreationDate": FIRST(groups).likesCreationDate,
+      "minutesLatency": FIRST(groups).minutesLatency,
+      "messageId": FIRST(groups).post._key,
+      "messageContent": FIRST(groups).post.content,
+      "isNew": true
+    }

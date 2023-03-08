@@ -5,24 +5,36 @@
   "Jose" AS firstName
 }
 */
-
-
+WITH Place
 LET friends = (FOR p IN Person
 FILTER p._key == @personId
-  FOR c  IN 1..3 OUTBOUND p knows
+  FOR f, e, path IN 1..3 OUTBOUND p knows
   OPTIONS { order: "bfs" }
-  FILTER c.firstName == @firstName
-  SORT
-    p.lastName ASC,
-    TO_NUMBER(c._key) ASC
+  FILTER f.firstName == @firstName
   LIMIT 20
-RETURN c
+  RETURN {
+    "otherPerson": f,
+    "distanceFromPerson": LENGTH(path.weights) -1
+  }
 )
 
-FOR f IN friends
-  FOR l IN 1..1 OUTBOUND f isLocatedIn
-
-
-FOR f IN friends2
-  RETURN f
+FOR p IN friends
+  SORT
+    p.distanceFromPerson ASC,
+    p.lastName ASC,
+    TO_NUMBER(p._key) ASC
+  FOR l IN 1..1 OUTBOUND p.otherPerson isLocatedIn
+  RETURN {
+    "friendId": p.otherPerson._key,
+    "friendLastName": p.otherPerson.lastName,
+    "distanceFromPerson": p.distanceFromPerson,
+    "friendBirthday": p.otherPerson.birthday,
+    "friendCreationDate": p.otherPerson.creationDate,
+    "friendGender": p.otherPerson.gender,
+    "friendBrowserUsed": p.otherPerson.browserUsed,
+    "friendLocationIp": p.otherPerson.locationIP,
+    "friendEmails": p.otherPerson.email,
+    "friendLanguages": p.otherPerson.speaks,
+    "friendCityName": l.name
+  }
 

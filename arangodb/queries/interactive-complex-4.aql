@@ -1,0 +1,24 @@
+// Q4. New topics
+/*
+:param [{ personId, startDate, endDate }] => { RETURN
+  4398046511333 AS personId,
+  1275350400000 AS startDate,
+  1277856000000 AS endDate
+}
+*/
+
+WITH Message, Tag
+FOR p IN Person
+FILTER p._key == @personId
+  FOR f IN 1..1 OUTBOUND p knows
+  FILTER f._key != p._key
+    FOR post IN 1..1 INBOUND f hasCreator
+      FILTER post.creationDate > @startDate && post.creationDate < @endDate
+      FOR tag IN 1..1 OUTBOUND post hasTag
+      COLLECT tagName=tag.name WITH COUNT INTO postCount
+      SORT postCount DESC, tagName
+      LIMIT @limit
+      RETURN {
+        "tagName": tagName,
+        "postCount": postCount
+      }

@@ -1,0 +1,33 @@
+// Q5. New groups
+/*
+:param [{ personId, minDate }] => { RETURN
+  6597069766734 AS personId,
+  1288612800000 AS minDate
+}
+*/
+
+
+// 1. find other persons
+LET otherPersons=(FOR p IN Person
+FILTER p._key == @personId
+  FOR f IN 1..2 OUTBOUND p knows
+  FILTER f._key != p._key
+  RETURN DISTINCT f
+)
+
+// 2. find forums
+LET forums= (FOR p IN otherPersons
+  FOR forum, m IN 1..1 INBOUND p hasMember
+  FILTER m.joinDate > @minDate
+  return DISTINCT forum
+)
+
+FOR post IN messages
+FILTER
+    FOR post IN 1..1 OUTBOUND forum containerOf
+      FOR creator IN 1..1 OUTBOUND post hasCreator
+      FILTER creator IN otherPersons
+
+  LIMIT 10
+  return post
+}

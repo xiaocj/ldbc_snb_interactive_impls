@@ -1,0 +1,26 @@
+// Q9. Recent messages by friends or friends of friends
+/*
+:param [{ personId, maxDate }] => { RETURN
+  4398046511268 AS personId,
+  1289908800000 AS maxDate
+}
+*/
+
+WITH Message
+FOR p IN Person
+FILTER p._key == @personId
+  FOR f  IN 1..2 OUTBOUND p knows
+  FILTER f._key != p._key
+    FOR m IN 1..1 INBOUND f hasCreator
+    FILTER m.ceationDate < @maxDate
+    SORT m.creationDate DESC, TO_NUMBER(m._key) ASC
+    LIMIT @limit
+
+    RETURN {
+      "personId": f._key,
+      "personFirstName": f.firstName,
+      "personLastName": f.lastName,
+      "commentOrPostId": m._key,
+      "commentOrPostContent": m.content,
+      "commentOrPostCreationDate": m.creationDate
+    }

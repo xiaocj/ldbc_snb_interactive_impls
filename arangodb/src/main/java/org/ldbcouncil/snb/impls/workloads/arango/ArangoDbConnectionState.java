@@ -20,8 +20,7 @@ public class ArangoDbConnectionState<TDbQueryStore extends QueryStore> extends B
         final String endpointURI = properties.get( "endpoint" );
         final String username = properties.get( "user" );
         final String password = properties.get( "password" );
-
-        final String graphName = properties.get("graphName");
+        final String graphName = properties.get("dbName");
 
         driver = new ArangoDB.Builder()
                 .host(endpointURI, 8529)

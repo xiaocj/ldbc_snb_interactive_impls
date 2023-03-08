@@ -1,0 +1,36 @@
+// Q6. Tag co-occurrence
+/*
+:param [{ personId, tagName }] => { RETURN
+  4398046511333 AS personId,
+  "Carl_Gustaf_Emil_Mannerheim" AS tagName
+}
+*/
+WITH Message, Tag
+
+// 1. find other persons
+LET otherPersons=(FOR p IN Person
+FILTER p._key == @personId
+  FOR f IN 1..2 OUTBOUND p knows
+  FILTER f._key != p._key
+  RETURN DISTINCT f
+)
+
+// 2. find all posts
+LET posts = (FOR p IN otherPersons
+  FOR post IN 1..1 INBOUND p hasCreator
+    FOR tag IN 1..1 OUTBOUND post hasTag
+    FILTER tag.name == @tagName
+    RETURN post
+)
+
+FOR post IN posts
+  FOR tag IN 1..1 OUTBOUND post hasTag
+  FILTER tag.name != @tagName
+    COLLECT tagName=tag.name WITH COUNT INTO postCount
+    SORT postCount Desc, tagName
+    LIMIT 10
+    RETURN {
+      "tagName": tagName,
+      "postCount": postCount
+    }
+

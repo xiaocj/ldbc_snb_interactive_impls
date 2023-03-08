@@ -27,4 +27,12 @@ public class ArangoConverter extends Converter {
         }
         return orgs;
     }
+
+    public static String convertToString(Object o) {
+        if (o instanceof String) {
+            return (String) o;
+        } else  {
+            return String.valueOf(o);
+        }
+    }
 }

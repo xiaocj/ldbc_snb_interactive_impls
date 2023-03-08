@@ -27,10 +27,9 @@ WITH Message
  FILTER person._key == @personId
    FOR message IN 1..1 INBOUND person hasCreator
      SORT message.creationDate DESC, TO_NUMBER(message._key) DESC
-     LIMIT @limit
+     LIMIT 10
      FOR originalPost IN 0..1024 OUTBOUND message replyOf
-       FILTER originalPost.type == "Post"
-         FOR originalPostAuthor IN 1..1 OUTBOUND originalPost hasCreator
+       FOR originalPostAuthor IN 1..1 OUTBOUND originalPost hasCreator
  RETURN {
    messageId: message._key,
    messageContent: message.content,
