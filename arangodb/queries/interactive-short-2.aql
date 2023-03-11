@@ -28,15 +28,24 @@ WITH Message
    FOR message IN 1..1 INBOUND person hasCreator
      SORT message.creationDate DESC, TO_NUMBER(message._key) DESC
      LIMIT 10
-     FOR originalPost IN 0..1024 OUTBOUND message replyOf
+     LET detail = FIRST(FOR originalPost IN 0..1024 OUTBOUND message replyOf
+       FILTER originalPost.type=="post"
+       LIMIT 1
        FOR originalPostAuthor IN 1..1 OUTBOUND originalPost hasCreator
- RETURN {
-   messageId: message._key,
-   messageContent: message.content,
-   messageImageFile: message.imageFile,
-   messageCreationDate: message.creationDate,
-   originalPostId: originalPost._key,
-   originalPostAuthorId: originalPostAuthor._key,
-   originalPostAuthorFirstName: originalPostAuthor.firstName,
-   originalPostAuthorLastName: originalPostAuthor.lastName
-  }
+         LIMIT 1
+         RETURN {
+           "originalPost": originalPost,
+           "originalPostAuthor": originalPostAuthor
+         }
+      )
+
+     RETURN {
+       messageId: message._key,
+       messageContent: message.content,
+       messageImageFile: message.imageFile,
+       messageCreationDate: message.creationDate,
+       originalPostId: detail.originalPost._key,
+       originalPostAuthorId: detail.originalPostAuthor._key,
+       originalPostAuthorFirstName: detail.originalPostAuthor.firstName,
+       originalPostAuthorLastName: detail.originalPostAuthor.lastName
+      }

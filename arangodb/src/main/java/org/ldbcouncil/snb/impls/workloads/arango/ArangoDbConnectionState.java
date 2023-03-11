@@ -22,10 +22,17 @@ public class ArangoDbConnectionState<TDbQueryStore extends QueryStore> extends B
         final String password = properties.get( "password" );
         final String graphName = properties.get("dbName");
 
+        int timeoutMs = 0;
+        final String timoutSecond = properties.get("timeout");
+        if (timoutSecond != null) {
+            timeoutMs = Integer.parseInt(timoutSecond) * 1000;
+        }
+
         driver = new ArangoDB.Builder()
                 .host(endpointURI, 8529)
                 .maxConnections(8)
                 .user(username)
+                .timeout(timeoutMs)
                 .password(password)
                 .build();
 

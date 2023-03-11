@@ -15,7 +15,7 @@ WITH Message, Forum, Person
   FOR message IN Message
     FILTER message._key == @messageId
     FOR originalPost IN 0..1024 OUTBOUND message replyOf
-      FILTER originalPost.type == "Post"
+      FILTER originalPost.type == "post"
       FOR forum IN 1..1 INBOUND originalPost containerOf
         FOR moderator IN 1..1 OUTBOUND forum hasModerator
   RETURN {

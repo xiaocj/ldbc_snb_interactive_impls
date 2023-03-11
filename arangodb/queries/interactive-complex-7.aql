@@ -4,25 +4,34 @@
 */
 
 WITH Message
-FOR p IN Person
+LET likes2 =(FOR p IN Person
 FILTER p._key == @personId
   FOR post IN 1..1 INBOUND p hasCreator
     FOR liker, elike IN 1..1 INBOUND post likes
-      LET likeCreateTime = elike.creationDate
-      LET minutesLatency = (likeCreateTime - post.creationDate)/1000/60
-      SORT likeCreateTime DESC, TO_NUMBER(post._key) ASC
       COLLECT l=liker INTO groups = {
         "post": post,
-        "minutesLatency": minutesLatency,
-        "likesCreationDate": likeCreateTime
+        "likesCreationDate": elike.creationDate
       }
+
+      return {
+        "liker": l,
+        "m": FIRST(FOR g IN groups SORT g.likesCreationDate DESC LIMIT 1 RETURN g)
+      }
+)
+
+FOR l IN likes2
+    LET liker = l.liker
+    LET likesCreationDate = l.m.likesCreationDate
+    LET post = l.m.post
+    SORT likesCreationDate DESC, TO_NUMBER(post._key) ASC
+    LIMIT 20
     RETURN {
-      "friendId": l._key,
-      "friendFirstName": l.firstName,
-      "friendLastName": l.lastName,
-      "likesCreationDate": FIRST(groups).likesCreationDate,
-      "minutesLatency": FIRST(groups).minutesLatency,
-      "messageId": FIRST(groups).post._key,
-      "messageContent": FIRST(groups).post.content,
+      "friendId": liker._key,
+      "friendFirstName": liker.firstName,
+      "friendLastName": liker.lastName,
+      "likesCreationDate": likesCreationDate,
+      "minutesLatency": (likesCreationDate - post.creationDate)/1000/60,
+      "messageId": post._key,
+      "messageContent": post.content,
       "isNew": true
     }

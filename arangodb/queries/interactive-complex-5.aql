@@ -7,10 +7,12 @@
 */
 
 
+// TODO:
+
 // 1. find other persons
 LET otherPersons=(FOR p IN Person
 FILTER p._key == @personId
-  FOR f IN 1..2 OUTBOUND p knows
+  FOR f IN 1..2 ANY p knows
   FILTER f._key != p._key
   RETURN DISTINCT f
 )
@@ -22,12 +24,23 @@ LET forums= (FOR p IN otherPersons
   return DISTINCT forum
 )
 
-FOR post IN messages
-FILTER
-    FOR post IN 1..1 OUTBOUND forum containerOf
-      FOR creator IN 1..1 OUTBOUND post hasCreator
-      FILTER creator IN otherPersons
 
-  LIMIT 10
-  return post
-}
+// 3. calculate the postCount
+LET allStats = (FOR f IN otherPersons
+  FOR post IN 1..1 INBOUND f hasCreator
+    FILTER post.type=="post"
+    FOR forum IN 1..1 INBOUND post containerOf
+      COLLECT forumId = forum._key WITH COUNT INTO postCount
+      return {
+        "forumId": TO_NUMBER(forumId),
+        "postCount": postCount
+      }
+)
+
+//RETURN length(allStats)
+FOR s IN allStats
+  FILTER s.forumId IN forums
+  SORT s.postCount DESC, TO_NUMBER(s.forumId)
+  LIMIT 20
+  RETURN s
+

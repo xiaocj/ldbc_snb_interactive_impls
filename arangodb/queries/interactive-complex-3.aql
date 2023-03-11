@@ -12,18 +12,20 @@
 WITH Place, Message
 // 1. find all friends, and friends of friends
 LET friends = (FOR p IN Person
-FILTER p._key == @personId
-  FOR f  IN 1..2 OUTBOUND p knows
-  FILTER f._key != p._key
-  RETURN f
+  FILTER p._key == @personId
+    FOR f IN 1..2 ANY p knows
+    FILTER f._key != p._key
+    RETURN DISTINCT f
 )
 
 // 2. filter friends not located in @countryXName and @countryYName
 LET friends2 = (FOR f IN friends
     FOR l IN 1..1 OUTBOUND f isLocatedIn
     FILTER l.type == "city"
+    LIMIT 1
         FOR l2 IN OUTBOUND l isPartOf
         FILTER l2.type == "country" && l2.name NOT IN [@countryXName, @countryYName]
+        LIMIT 1
         RETURN f
 )
 
@@ -32,13 +34,13 @@ LET messages = (FOR f IN friends2
     FOR m IN 1..1 INBOUND f hasCreator
         FILTER m.creationDate >= @startDate && m.creationDate < @endDate
         FOR l IN 1..1 OUTBOUND m isLocatedIn
-        FILTER l.name IN [@countryXName, @countryYName]
-        RETURN {
-           "personId": f._key,
-           "firstName": f.firstName,
-           "lastName": f.lastName,
-           "country": l.name
-        }
+          FILTER l.name IN [@countryXName, @countryYName]
+          RETURN {
+             "personId": f._key,
+             "firstName": f.firstName,
+             "lastName": f.lastName,
+             "country": l.name
+          }
 )
 
 // 4. group messages by person, and country
@@ -69,4 +71,3 @@ return {
     "yCount": FIRST(FOR g IN groups FILTER g.country == @countryYName RETURN g.count),
     "count" : tot,
 }
-

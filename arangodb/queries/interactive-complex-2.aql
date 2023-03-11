@@ -7,10 +7,14 @@
 */
 
 WITH Message
-FOR p IN Person
-FILTER p._key == @personId
-  FOR f  IN 1..1 OUTBOUND p knows
-    FOR m IN 1..1 INBOUND f hasCreator
+LET friends=(FOR p IN Person
+  FILTER p._key == @personId
+  FOR f  IN 1..1 ANY p knows
+    RETURN DISTINCT f
+)
+
+FOR f IN friends
+  FOR m IN 1..1 INBOUND f hasCreator
     FILTER m.creationDate <= @maxDate
     SORT
       m.creationDate DESC,
@@ -24,4 +28,3 @@ RETURN {
   postOrCommentContent: m.content,
   postOrCommentCreationDate: m.creationDate
 }
-

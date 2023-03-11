@@ -5,36 +5,68 @@
   "Jose" AS firstName
 }
 */
-WITH Place
+WITH Place, Organisation
+// find all 3 hop friends
 LET friends = (FOR p IN Person
-FILTER p._key == @personId
-  FOR f, e, path IN 1..3 OUTBOUND p knows
-  OPTIONS { order: "bfs" }
-  FILTER f.firstName == @firstName
-  LIMIT 20
-  RETURN {
-    "otherPerson": f,
-    "distanceFromPerson": LENGTH(path.weights) -1
-  }
+  FILTER p._key == @personId
+
+  FOR f, e, path IN 1..3 ANY p knows
+    FILTER f.firstName == @firstName
+    COLLECT distinct_f = f INTO dists = {
+      "dist": LENGTH(path.weights) -1
+    }
+
+    FILTER distinct_f._key != @personId
+    RETURN {
+      "friend": distinct_f,
+      "dists": dists
+    }
 )
 
-FOR p IN friends
-  SORT
-    p.distanceFromPerson ASC,
-    p.lastName ASC,
-    TO_NUMBER(p._key) ASC
-  FOR l IN 1..1 OUTBOUND p.otherPerson isLocatedIn
+// calculate distance
+LET friends2 = (FOR f IN friends
   RETURN {
-    "friendId": p.otherPerson._key,
-    "friendLastName": p.otherPerson.lastName,
-    "distanceFromPerson": p.distanceFromPerson,
-    "friendBirthday": p.otherPerson.birthday,
-    "friendCreationDate": p.otherPerson.creationDate,
-    "friendGender": p.otherPerson.gender,
-    "friendBrowserUsed": p.otherPerson.browserUsed,
-    "friendLocationIp": p.otherPerson.locationIP,
-    "friendEmails": p.otherPerson.email,
-    "friendLanguages": p.otherPerson.speaks,
-    "friendCityName": l.name
+    "friend": f.friend,
+    "dist": FIRST(FOR d IN f.dists SORT d.dist LIMIT 1 RETURN d.dist)
+  })
+
+// get info
+FOR p IN friends2
+  SORT
+    p.dist ASC,
+    p.friend.lastName ASC,
+    TO_NUMBER(p.friend._key) ASC
+
+  LET city= (FOR l IN 1..1 OUTBOUND p.friend isLocatedIn RETURN l.name)
+  LET companies=(FOR company IN 1..1 OUTBOUND p.friend workAt
+        FOR country IN 1..1 OUTBOUND company isLocatedIn
+        RETURN {
+          "companyName": company.name,
+          "companyCountryName": country.name
+        }
+  )
+  LET universities=(FOR university IN 1..1 OUTBOUND p.friend studyAt
+        FOR country IN 1..1 OUTBOUND university isLocatedIn
+        RETURN {
+          "universityName": university.name,
+          "universityCountryName": country.name
+        }
+  )
+
+  RETURN {
+    "friendId": p.friend._key,
+    "friendLastName": p.friend.lastName,
+    "distanceFromPerson": p.dist,
+    "friendBirthday": p.friend.birthday,
+    "friendCreationDate": p.friend.creationDate,
+    "friendGender": p.friend.gender,
+    "friendBrowserUsed": p.friend.browserUsed,
+    "friendLocationIp": p.friend.locationIP,
+    "friendEmails": p.friend.email,
+    "friendLanguages": p.friend.speaks,
+    "friendCityName": FIRST(city),
+    "companies":  companies,
+    "universities": universities
   }
+
 

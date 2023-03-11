@@ -6,14 +6,19 @@
 }
 */
 
+// 1. find all friends, and friends of friends
 WITH Message
-FOR p IN Person
+LET friends=(FOR p IN Person
 FILTER p._key == @personId
-  FOR f  IN 1..2 OUTBOUND p knows
+  FOR f IN 1..2 ANY p knows
   FILTER f._key != p._key
+  COLLECT distinct_user = f
+  RETURN distinct_user)
+
+FOR f IN friends
     FOR m IN 1..1 INBOUND f hasCreator
-    FILTER m.ceationDate < @maxDate
-    SORT m.creationDate DESC, TO_NUMBER(m._key) ASC
+    FILTER m.creationDate < @maxDate
+    SORT TO_NUMBER(m.creationDate) DESC, TO_NUMBER(m._key) ASC
     LIMIT @limit
 
     RETURN {
@@ -24,3 +29,4 @@ FILTER p._key == @personId
       "commentOrPostContent": m.content,
       "commentOrPostCreationDate": m.creationDate
     }
+

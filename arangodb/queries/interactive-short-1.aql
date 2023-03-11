@@ -14,7 +14,6 @@ RETURN
 
  */
 
-
 WITH Place
 FOR p IN Person
 FILTER p._key == @personId

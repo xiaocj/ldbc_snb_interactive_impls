@@ -1,0 +1,64 @@
+// Q10. Friend recommendation
+/*
+:param [{ personId, month }] => { RETURN
+  4398046511333 AS personId,
+  5 AS month
+}
+*/
+
+// TODO:
+
+WITH Tag, Message, Place
+// find friends
+LET friends =(FOR p IN Person
+FILTER p._key == @personId
+  LET f1List = (FOR f IN 1..1 OUTBOUND p knows
+    FILTER f._key != @personId
+    RETURN f
+  )
+  FOR f2  IN 2..2 OUTBOUND p knows
+  FILTER f2._key != @personId && f2 NOT IN f1List
+    LET birthMonth = DATE_MONTH(f2.birthday)
+    LET birthDay = DATE_DAY(f2.birthday)
+    FILTER (birthMonth == @month && birthDay >= 21) || (birthMonth == (@month+1)%12 && birthDay < 22)
+    RETURN f2
+)
+
+
+// find mytags
+LET myTags = (FOR p IN Person
+FILTER p._key == @personId
+  FOR tag IN 1..1 OUTBOUND p hasInterest
+  RETURN DISTINCT tag
+)
+
+// find posts
+FOR f IN friends
+  LET posts = (FOR post IN 1..1 INBOUND f hasCreator
+    RETURN post
+  )
+
+  LET a = (FOR post IN posts
+    FOR tag IN 1..1 OUTBOUND post hasTag
+      FILTER tag IN myTags
+      COLLECT WITH COUNT INTO common
+      LET uncommon = LENGTH(posts) - common
+
+      RETURN {
+        "f": f,
+        "common": common,
+        "commonInterestScore": common - uncommon
+      }
+  )
+
+  SORT a.comm Desc, f.id
+  LIMIT 10
+  RETURN {
+     "personId": a.f._key,
+     "personFirstName": a.f.firstName,
+     "personLastName": a.f.lastName,
+     "personGender": a.f.gender,
+     "commonInterestScore": a.commonInterestScore,
+     "personCityName": FIRST(FOR city IN 1..1 OUTBOUND f isLocatedIn LIMIT 1 RETURN city)
+
+  }

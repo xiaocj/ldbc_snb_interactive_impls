@@ -7,18 +7,37 @@
 }
 */
 
-WITH Message, Tag
-FOR p IN Person
+// find friends
+WITH Place, Message, Tag
+LET friends = (FOR p IN Person
 FILTER p._key == @personId
-  FOR f IN 1..1 OUTBOUND p knows
+  FOR f IN 1..1 ANY p knows
   FILTER f._key != p._key
-    FOR post IN 1..1 INBOUND f hasCreator
-      FILTER post.creationDate > @startDate && post.creationDate < @endDate
-      FOR tag IN 1..1 OUTBOUND post hasTag
-      COLLECT tagName=tag.name WITH COUNT INTO postCount
+  RETURN f
+)
+
+// find all posts
+LET posts = (FOR f IN friends
+  FOR post IN 1..1 INBOUND f hasCreator
+    FILTER post.type == "post" && post.creationDate < @endDate
+    RETURN post
+)
+
+LET negTags = (FOR post IN posts
+  FILTER post.creationDate < @startDate
+  FOR tag IN 1..1 OUTBOUND post hasTag
+    RETURN DISTINCT tag
+)
+
+FOR post IN posts
+  FILTER post.creationDate >= @startDate
+  FOR tag IN 1..1 OUTBOUND post hasTag
+    FILTER tag NOT IN negTags
+    COLLECT tagName=tag.name WITH COUNT INTO postCount
       SORT postCount DESC, tagName
       LIMIT @limit
       RETURN {
         "tagName": tagName,
         "postCount": postCount
       }
+
